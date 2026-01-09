@@ -17,5 +17,5 @@ export interface ConfigPanelProps {
   setPaletteName: React.Dispatch<React.SetStateAction<string>>;
   style: WheelStyleConfig;
   setStyle: React.Dispatch<React.SetStateAction<WheelStyleConfig>>;
-  onExportSVG: () => void;
+  onExportPNG: () => void;
 }

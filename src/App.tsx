@@ -41,22 +41,27 @@ export default function App() {
     />
   );
 
-  const handleExportSVG = () => {
-    const blob = new Blob(
-      [
-        `<?xml version="1.0" encoding="UTF-8" standalone="no"?>`,
-        renderToStaticMarkup(wheelEl).replace(
-          "<svg ",
-          `<svg xmlns="http://www.w3.org/2000/svg" `,
-        ),
-      ],
-      { type: "image/svg+xml" },
-    );
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "calendar-wheel.svg";
-    a.click();
+  const handleExportPNG = () => {
+    const svgString = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>${renderToStaticMarkup(wheelEl).replace(
+      "<svg ",
+      `<svg xmlns="http://www.w3.org/2000/svg" `,
+    )}`;
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = style.size;
+      canvas.height = style.size;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'calendar-wheel.png';
+        a.click();
+      }, 'image/png');
+    };
+    img.src = 'data:image/svg+xml;base64,' + btoa(svgString);
   };
   return (
     <div className="grid grid-cols-2 gap-2">
@@ -77,7 +82,7 @@ export default function App() {
           setPaletteName={setPaletteName}
           style={style}
           setStyle={setStyle}
-          onExportSVG={handleExportSVG}
+          onExportPNG={handleExportPNG}
         />
       </div>
     </div>

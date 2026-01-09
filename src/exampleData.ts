@@ -61,5 +61,13 @@ export function loadExampleData(): CalendarEvent[] {
       lane: 1,
       categoryId: "winter",
     },
+    {
+      start: datefns.set(soy, { month: 6, date: 4 }),
+      end: datefns.addDays(datefns.set(soy, { month: 6, date: 4 }), 1),
+      subject: "July 4th",
+      uid: "july4",
+      lane: 1,
+      categoryId: "summer",
+    },
   ];
 }

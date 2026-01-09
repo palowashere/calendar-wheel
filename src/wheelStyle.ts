@@ -63,7 +63,7 @@ export function getDefaultWheelStyle(size: number): WheelStyleConfig {
     monthFontSize: 24,
     weekFontSize: 12,
     // Today
-    showTodayIndicator: false,
+    showTodayIndicator: true,
     alignWheelToToday: false,
     // Future and past coloring
     futureColor: null,

@@ -1,5 +1,4 @@
 import { ConfigPanelProps } from "./types";
-import React from "react";
 import { EventsTable } from "./EventsTable";
 import { CategoriesTable } from "./CategoriesTable";
 

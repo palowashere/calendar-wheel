@@ -84,18 +84,31 @@ function getMonthRingElements({
     monthFontSize,
   } = styleConfig;
   
-  // Seasonal colors for months
+  // Seasonal colors for months - each month gets a slightly different shade
   const getSeasonColor = (date: Date) => {
     const month = date.getMonth();
-    // Winter: Dec(11), Jan(0), Feb(1) - Light blue
-    // Spring: Mar(2), Apr(3), May(4) - Light green
-    // Summer: Jun(5), Jul(6), Aug(7) - Light yellow (made slightly more saturated)
-    // Fall: Sep(8), Oct(9), Nov(10) - Light peach
-    if ([11, 0, 1].includes(month)) return "rgba(173, 216, 230, 0.6)";
-    if ([2, 3, 4].includes(month)) return "rgba(144, 238, 144, 0.6)";
-    if ([5, 6, 7].includes(month)) return "rgba(255, 255, 200, 0.7)"; // Slightly more saturated and opaque
-    if ([8, 9, 10].includes(month)) return "rgba(255, 218, 185, 0.6)";
-    return "rgba(200, 200, 200, 0.6)";
+    
+    // Winter: Dec(11), Jan(0), Feb(1) - Blue variations
+    if (month === 11) return "rgba(173, 216, 230, 0.7)"; // December: Standard blue
+    if (month === 0) return "rgba(186, 206, 230, 0.7)";  // January: Slightly darker blue
+    if (month === 1) return "rgba(135, 206, 235, 0.7)";  // February: Sky blue
+    
+    // Spring: Mar(2), Apr(3), May(4) - Green variations
+    if (month === 2) return "rgba(144, 238, 144, 0.7)"; // March: Standard green
+    if (month === 3) return "rgba(173, 255, 173, 0.7)"; // April: Mint green (more blue)
+    if (month === 4) return "rgba(204, 255, 144, 0.7)"; // May: Lime green (more yellow)
+    
+    // Summer: Jun(5), Jul(6), Aug(7) - Yellow variations
+    if (month === 5) return "rgba(255, 255, 200, 0.8)"; // June: Pale yellow
+    if (month === 6) return "rgba(255, 255, 180, 0.8)"; // July: Golden yellow
+    if (month === 7) return "rgba(255, 250, 160, 0.8)"; // August: Cream yellow
+    
+    // Fall: Sep(8), Oct(9), Nov(10) - Orange/Peach variations
+    if (month === 8) return "rgba(255, 218, 185, 0.7)"; // September: Peach
+    if (month === 9) return "rgba(255, 203, 164, 0.7)"; // October: Light orange
+    if (month === 10) return "rgba(255, 188, 143, 0.7)"; // November: Darker peach
+    
+    return "rgba(200, 200, 200, 0.6)"; // Fallback
   };
   
   if (monthInnerRadius >= monthOuterRadius) return null;
@@ -251,14 +264,8 @@ function getDateRingElements({
     let strokeWidth = 1;
     let opacity = 0.5;
     
-    // Today: bright pink
-    if (dateStart.getTime() === todayStart.getTime()) {
-      stroke = "#ff69b4"; // Hot pink
-      strokeWidth = 2;
-      opacity = 1;
-    }
     // Sundays: blue (or darker blue in summer)
-    else if (weekday === 7) {
+    if (weekday === 7) {
       stroke = isSummer ? "#000080" : "blue"; // Darker blue for summer
     }
     
@@ -295,8 +302,12 @@ function getEventsElements(
   return events.map((event) => {
     // TODO: time zones not supported
     const textPathId = `textPath-${event.uid}`;
+    let endDate = event.end;
+    if (event.start.getTime() === event.end.getTime()) {
+      endDate = datefns.addDays(event.start, 1);
+    }
     const startAngle = dateToAngle(event.start);
-    let endAngle = dateToAngle(event.end);
+    let endAngle = dateToAngle(endDate);
     
     // Ensure minimum visibility for short events (at least 1 degree or 1 day, whichever is larger)
     const minAngleSpan = Math.max(minimumVisibleAngle, (1 / 360) * Math.PI * 2); // At least 1 degree
@@ -369,27 +380,33 @@ function getEventsElements(
 }
 
 function getTodayIndicatorElements({
+  minDate,
+  maxDate,
   dateToAngle,
   styleConfig,
 }: WheelRenderEphemeraInternal) {
-  const { dateInnerRadius, dateOuterRadius } = styleConfig;
+  const { dateInnerRadius, dateOuterRadius, reverse } = styleConfig;
   if (dateInnerRadius >= dateOuterRadius) return null;
-  const angle = dateToAngle(new Date());
-  const cosAngle = Math.cos(angle);
-  const sinAngle = Math.sin(angle);
-  const x1 = cosAngle * dateInnerRadius;
-  const y1 = sinAngle * dateInnerRadius;
-  const x2 = cosAngle * dateOuterRadius;
-  const y2 = sinAngle * dateOuterRadius;
+  const today = datefns.addDays(new Date(), -1);
+  const tsRange = +maxDate - +minDate;
+  const dayMs = 24 * 60 * 60 * 1000;
+  const span = Math.abs((dayMs / tsRange) * Math.PI * 2);
+  const angle = dateToAngle(today);
+  const startAngle = angle - span / 2;
+  const endAngle = angle + span / 2;
   return (
-    <line
-      x1={x1.toFixed(DEFAULT_FRACTION_DIGITS)}
-      y1={y1.toFixed(DEFAULT_FRACTION_DIGITS)}
-      x2={x2.toFixed(DEFAULT_FRACTION_DIGITS)}
-      y2={y2.toFixed(DEFAULT_FRACTION_DIGITS)}
-      stroke="#ff1493" // Deep pink
-      strokeWidth={3}
-      opacity={0.8}
+    <path
+      d={generateFatArcPathCommand(
+        0,
+        0,
+        dateInnerRadius,
+        dateOuterRadius,
+        startAngle,
+        endAngle,
+        reverse,
+      )}
+      fill="#ff1493" // Deep pink
+      opacity={0.5}
     />
   );
 }
@@ -564,7 +581,8 @@ export function Wheel({
   const minTimestamp = +minDateT;
   const maxTimestamp = +maxDateT;
   const tsRange = maxTimestamp - minTimestamp;
-  const { angleOffsetDeg, size, reverse } = styleConfig;
+  const { angleOffsetDeg, size } = styleConfig;
+  const reverse = false;
 
   const angleOffset = (angleOffsetDeg / 360) * Math.PI * 2;
 
@@ -592,7 +610,7 @@ export function Wheel({
           styleConfig.pastColor,
           styleConfig.pastColorOpacity,
           minDateT,
-          today,
+          datefns.addDays(today, -1),
         )
       : null;
   const futureElements =

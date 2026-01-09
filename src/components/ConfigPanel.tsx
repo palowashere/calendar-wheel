@@ -1,6 +1,4 @@
-import React from "react";
 import { ConfigPanelProps } from "./types";
-import { StylePanel } from "./StylePanel";
 import { DataPanel } from "./DataPanel";
 
 export function ConfigPanel(props: ConfigPanelProps) {
@@ -13,8 +11,8 @@ export function ConfigPanel(props: ConfigPanelProps) {
           2026
         </button>
         <div className="grow" />
-        <button onClick={() => props.onExportSVG()} className="hover:bg-slate-200 px-2 py-1">
-          Export SVG
+        <button onClick={() => props.onExportPNG()} className="hover:bg-slate-200 px-2 py-1">
+          Export PNG
         </button>
       </div>
       <DataPanel {...props} />

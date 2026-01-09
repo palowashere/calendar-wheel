@@ -139,6 +139,8 @@ export function EventsTable({ events, setEvents, categories }: EventsTableProps)
                 dateFormat="yyyy-MM-dd"
                 calendarStartDay={1}
                 className="w-full border border-gray-300 px-2 py-1"
+                portalId="root"
+                popperClassName="z-[9999]"
               />
             </td>
             <td className="w-32">
@@ -148,6 +150,8 @@ export function EventsTable({ events, setEvents, categories }: EventsTableProps)
                 dateFormat="yyyy-MM-dd"
                 calendarStartDay={1}
                 className="w-full border border-gray-300 px-2 py-1"
+                portalId="root"
+                popperClassName="z-[9999]"
               />
             </td>
             <td>
