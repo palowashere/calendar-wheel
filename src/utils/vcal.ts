@@ -1,4 +1,3 @@
-import { CalendarEvent } from "../types";
 import type { CalendarComponent, VEvent } from "node-ical";
 
 export function isVEvent(comp: CalendarComponent): comp is VEvent {
@@ -19,6 +18,6 @@ export async function parseVCal(text: string, minDateT: Date, maxDateT: Date) {
           end: event.end,
           subject: event.summary,
           lane: 1,
-        }) satisfies CalendarEvent,
+        }),
     );
 }

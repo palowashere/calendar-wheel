@@ -1,13 +1,14 @@
-import * as datefns from "date-fns";
 import React from "react";
-import { CalendarEvent } from "../types";
-import { loadExampleData } from "../exampleData";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import { CalendarEvent, Category } from "../types";
 
 import { sortEvents } from "../utils/events";
 
 interface EventsTableProps {
   events: readonly CalendarEvent[];
   setEvents: React.Dispatch<React.SetStateAction<CalendarEvent[]>>;
+  categories: readonly Category[];
 }
 
 function getUidFromEvent(
@@ -16,7 +17,7 @@ function getUidFromEvent(
   return event.currentTarget.closest("tr")?.dataset.eventUid;
 }
 
-export function EventsTable({ events, setEvents }: EventsTableProps) {
+export function EventsTable({ events, setEvents, categories }: EventsTableProps) {
   const handleDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
     const uid = getUidFromEvent(e);
     if (!uid) {
@@ -24,29 +25,19 @@ export function EventsTable({ events, setEvents }: EventsTableProps) {
     }
     setEvents((events) => events.filter((event) => event.uid !== uid));
   };
-  const handleChangeStart = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const uid = getUidFromEvent(e);
-    if (!uid) {
-      return;
-    }
-    const newStart = new Date(e.target.value);
-    if (+newStart < 0) return;
+  const handleChangeStart = (date: Date | null, uid: string) => {
+    if (!date) return;
     setEvents((events) =>
       events.map((event) =>
-        event.uid === uid ? { ...event, start: newStart } : event,
+        event.uid === uid ? { ...event, start: date } : event,
       ),
     );
   };
-  const handleChangeEnd = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const uid = getUidFromEvent(e);
-    if (!uid) {
-      return;
-    }
-    const newEnd = new Date(e.target.value);
-    if (+newEnd < 0) return;
+  const handleChangeEnd = (date: Date | null, uid: string) => {
+    if (!date) return;
     setEvents((events) =>
       events.map((event) =>
-        event.uid === uid ? { ...event, end: newEnd } : event,
+        event.uid === uid ? { ...event, end: date } : event,
       ),
     );
   };
@@ -71,6 +62,7 @@ export function EventsTable({ events, setEvents }: EventsTableProps) {
         end: new Date(),
         subject: "",
         lane: 1,
+        categoryId: categories[0]?.id || "",
       },
     ]);
   };
@@ -83,6 +75,18 @@ export function EventsTable({ events, setEvents }: EventsTableProps) {
     setEvents((events) =>
       events.map((event) =>
         event.uid === uid ? { ...event, lane: newLane } : event,
+      ),
+    );
+  };
+  const handleChangeCategory = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const uid = getUidFromEvent(e);
+    if (!uid) {
+      return;
+    }
+    const newCategoryId = e.target.value;
+    setEvents((events) =>
+      events.map((event) =>
+        event.uid === uid ? { ...event, categoryId: newCategoryId } : event,
       ),
     );
   };
@@ -105,14 +109,6 @@ export function EventsTable({ events, setEvents }: EventsTableProps) {
       ].sort(sortEvents),
     );
   };
-  const handleConfirmClear = () => {
-    if (confirm("Are you sure?")) setEvents([]);
-  };
-  const handleConfirmLoad = () => {
-    if (confirm("Are you sure?")) {
-      setEvents(loadExampleData().sort(sortEvents));
-    }
-  };
   return (
     <table className="relative table-auto w-full border-collapse text-sm leading-tight [&_td]:border border-gray-400">
       <thead className="sticky top-0 bg-white">
@@ -121,24 +117,13 @@ export function EventsTable({ events, setEvents }: EventsTableProps) {
           <th className="sticky w-32">End</th>
           <th className="sticky">Subject</th>
           <th className="sticky w-16">Lane</th>
+          <th className="sticky w-32">Category</th>
           <th className="sticky gap-2 flex flex-row justify-end">
             <button
               onClick={handleNew}
               className="border border-gray-400 px-1 py-0.5"
             >
-              New event
-            </button>
-            <button
-              onClick={handleConfirmClear}
-              className="border px-1 py-0.5 text-red-500 border-red-500"
-            >
-              Clear {events.length} events
-            </button>
-            <button
-              onClick={handleConfirmLoad}
-              className="border px-1 py-0.5 text-amber-500 border-amber-500"
-            >
-              Load example data
+              +
             </button>
           </th>
         </tr>
@@ -148,21 +133,21 @@ export function EventsTable({ events, setEvents }: EventsTableProps) {
         {events.map((event) => (
           <tr key={event.uid} data-event-uid={event.uid}>
             <td className="w-32">
-              <input
-                type="date"
-                value={datefns.formatISO(event.start, {
-                  representation: "date",
-                })}
-                onChange={handleChangeStart}
+              <DatePicker
+                selected={event.start}
+                onChange={(date: Date | null) => handleChangeStart(date, event.uid)}
+                dateFormat="yyyy-MM-dd"
+                calendarStartDay={1}
+                className="w-full border border-gray-300 px-2 py-1"
               />
             </td>
             <td className="w-32">
-              <input
-                type="date"
-                value={datefns.formatISO(event.end, {
-                  representation: "date",
-                })}
-                onChange={handleChangeEnd}
+              <DatePicker
+                selected={event.end}
+                onChange={(date: Date | null) => handleChangeEnd(date, event.uid)}
+                dateFormat="yyyy-MM-dd"
+                calendarStartDay={1}
+                className="w-full border border-gray-300 px-2 py-1"
               />
             </td>
             <td>
@@ -173,13 +158,26 @@ export function EventsTable({ events, setEvents }: EventsTableProps) {
               />
             </td>
 
-            <td className="w-16">
+            <td className="w-12">
               <input
                 value={event.lane ?? 1}
                 type="number"
                 min={1}
                 onChange={handleChangeLane}
               />
+            </td>
+            <td className="w-32">
+              <select
+                value={event.categoryId}
+                onChange={handleChangeCategory}
+                className="w-full"
+              >
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
             </td>
             <td className="text-end">
               <button

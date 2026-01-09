@@ -1,6 +1,6 @@
 import * as datefns from "date-fns";
-import React from "react";
-import { CalendarEvent } from "../types";
+import React, { useState } from "react";
+import { CalendarEvent, Category } from "../types";
 import {
   DEFAULT_FRACTION_DIGITS,
   generateArcPathCommand,
@@ -66,13 +66,13 @@ interface WheelRenderEphemeraInternal extends WheelRenderEphemeraInput {
 
 interface WheelProps extends WheelRenderEphemeraInput {
   events: readonly CalendarEvent[];
+  categories: readonly Category[];
 }
 
 function getMonthRingElements({
   minDate,
   maxDate,
   dateLocale,
-  palette,
   styleConfig,
   dateToAngle,
 }: WheelRenderEphemeraInternal) {
@@ -83,6 +83,21 @@ function getMonthRingElements({
     reverse,
     monthFontSize,
   } = styleConfig;
+  
+  // Seasonal colors for months
+  const getSeasonColor = (date: Date) => {
+    const month = date.getMonth();
+    // Winter: Dec(11), Jan(0), Feb(1) - Light blue
+    // Spring: Mar(2), Apr(3), May(4) - Light green
+    // Summer: Jun(5), Jul(6), Aug(7) - Light yellow (made slightly more saturated)
+    // Fall: Sep(8), Oct(9), Nov(10) - Light peach
+    if ([11, 0, 1].includes(month)) return "rgba(173, 216, 230, 0.6)";
+    if ([2, 3, 4].includes(month)) return "rgba(144, 238, 144, 0.6)";
+    if ([5, 6, 7].includes(month)) return "rgba(255, 255, 200, 0.7)"; // Slightly more saturated and opaque
+    if ([8, 9, 10].includes(month)) return "rgba(255, 218, 185, 0.6)";
+    return "rgba(200, 200, 200, 0.6)";
+  };
+  
   if (monthInnerRadius >= monthOuterRadius) return null;
   return Array.from(generateMonthTuples(minDate, maxDate)).map(
     ([date1, date2]) => {
@@ -104,8 +119,7 @@ function getMonthRingElements({
               endAngle,
               reverse,
             )}
-            opacity={0.7}
-            fill={palette.monthColors[date1.getMonth()]!.hex}
+            fill={getSeasonColor(date1)}
           />
           {monthFontSize > 0 ? (
             <>
@@ -127,7 +141,7 @@ function getMonthRingElements({
                   textAnchor={reverse ? "end" : "start"}
                   startOffset={reverse ? "100%" : "0%"}
                 >
-                  {datefns.formatDate(date1, "LLLL yyyy", {
+                  {datefns.formatDate(date1, "LLLL", {
                     locale: dateLocale,
                   })}
                 </textPath>
@@ -216,6 +230,9 @@ function getDateRingElements({
 }: WheelRenderEphemeraInternal) {
   const { dateInnerRadius, dateOuterRadius } = styleConfig;
   if (dateInnerRadius >= dateOuterRadius) return null;
+  const today = new Date();
+  const todayStart = datefns.startOfDay(today);
+  
   return Array.from(generateDays(minDate, maxDate)).map((date) => {
     const angle = dateToAngle(date);
     const cosAngle = Math.cos(angle);
@@ -224,8 +241,27 @@ function getDateRingElements({
     const y1 = sinAngle * dateInnerRadius;
     const x2 = cosAngle * dateOuterRadius;
     const y2 = sinAngle * dateOuterRadius;
+    
+    const dateStart = datefns.startOfDay(date);
     const weekday = datefns.getISODay(date);
-    const stroke = weekday === 6 || weekday === 7 ? "red" : "white";
+    const month = date.getMonth();
+    const isSummer = [5, 6, 7].includes(month); // June, July, August
+    
+    let stroke = isSummer ? "#cccccc" : "white"; // Darker grey for summer
+    let strokeWidth = 1;
+    let opacity = 0.5;
+    
+    // Today: bright pink
+    if (dateStart.getTime() === todayStart.getTime()) {
+      stroke = "#ff69b4"; // Hot pink
+      strokeWidth = 2;
+      opacity = 1;
+    }
+    // Sundays: blue (or darker blue in summer)
+    else if (weekday === 7) {
+      stroke = isSummer ? "#000080" : "blue"; // Darker blue for summer
+    }
+    
     return (
       <line
         key={+date}
@@ -234,8 +270,8 @@ function getDateRingElements({
         x2={x2.toFixed(DEFAULT_FRACTION_DIGITS)}
         y2={y2.toFixed(DEFAULT_FRACTION_DIGITS)}
         stroke={stroke}
-        strokeWidth={1}
-        opacity={0.5}
+        strokeWidth={strokeWidth}
+        opacity={opacity}
       />
     );
   });
@@ -243,7 +279,9 @@ function getDateRingElements({
 
 function getEventsElements(
   events: readonly CalendarEvent[],
+  categories: readonly Category[],
   { styleConfig, dateToAngle }: WheelRenderEphemeraInternal,
+  setHoveredEvent: (event: CalendarEvent | null) => void,
 ) {
   const {
     eventFontSize,
@@ -258,10 +296,15 @@ function getEventsElements(
     // TODO: time zones not supported
     const textPathId = `textPath-${event.uid}`;
     const startAngle = dateToAngle(event.start);
-    const endAngle = dateToAngle(event.end);
-    if (Math.abs(endAngle - startAngle) < minimumVisibleAngle) {
-      return null;
+    let endAngle = dateToAngle(event.end);
+    
+    // Ensure minimum visibility for short events (at least 1 degree or 1 day, whichever is larger)
+    const minAngleSpan = Math.max(minimumVisibleAngle, (1 / 360) * Math.PI * 2); // At least 1 degree
+    if (Math.abs(endAngle - startAngle) < minAngleSpan) {
+      // Extend the end angle to make it visible
+      endAngle = startAngle + (reverse ? -minAngleSpan : minAngleSpan);
     }
+    
     const [textStartAngle, textEndAngle] = reverse
       ? [endAngle, startAngle]
       : [startAngle, endAngle];
@@ -269,6 +312,9 @@ function getEventsElements(
     const normLane = event.lane - 1;
     const laneInnerRadius = eventInnerRadius - normLane * (laneWidth + laneGap);
     const laneOuterRadius = laneInnerRadius + laneWidth;
+    const category = categories.find((cat) => cat.id === event.categoryId);
+    const fillColor = category?.color || "#f5f6fa";
+    const fontColor = category?.fontColor || "#000000";
     return (
       <React.Fragment key={event.uid}>
         <path
@@ -282,9 +328,11 @@ function getEventsElements(
             reverse,
             isLarge,
           )}
-          fill="#f5f6fa"
+          fill={fillColor}
           stroke="#2f3640"
           strokeWidth={0.5}
+          onMouseEnter={() => setHoveredEvent(event)}
+          onMouseLeave={() => setHoveredEvent(null)}
         />
         {eventFontSize > 0 ? (
           <>
@@ -305,6 +353,9 @@ function getEventsElements(
               fontSize={eventFontSize}
               dominantBaseline="middle"
               textAnchor="middle"
+              fill={fontColor}
+              onMouseEnter={() => setHoveredEvent(event)}
+              onMouseLeave={() => setHoveredEvent(null)}
             >
               <textPath href={`#${textPathId}`} startOffset="50%">
                 {event.subject}
@@ -322,41 +373,108 @@ function getTodayIndicatorElements({
   styleConfig,
 }: WheelRenderEphemeraInternal) {
   const { dateInnerRadius, dateOuterRadius } = styleConfig;
-  const dateCenterRadius = (dateInnerRadius + dateOuterRadius) / 2;
-  const dateArrowSize = Math.abs(dateOuterRadius - dateInnerRadius) / 5;
   if (dateInnerRadius >= dateOuterRadius) return null;
   const angle = dateToAngle(new Date());
   const cosAngle = Math.cos(angle);
   const sinAngle = Math.sin(angle);
-  const arrowX = cosAngle * dateCenterRadius;
-  const arrowY = sinAngle * dateCenterRadius;
   const x1 = cosAngle * dateInnerRadius;
   const y1 = sinAngle * dateInnerRadius;
   const x2 = cosAngle * dateOuterRadius;
   const y2 = sinAngle * dateOuterRadius;
-  const angleDeg = (angle * 180) / Math.PI;
   return (
-    <>
-      <line
-        x1={x1.toFixed(DEFAULT_FRACTION_DIGITS)}
-        y1={y1.toFixed(DEFAULT_FRACTION_DIGITS)}
-        x2={x2.toFixed(DEFAULT_FRACTION_DIGITS)}
-        y2={y2.toFixed(DEFAULT_FRACTION_DIGITS)}
-        stroke="black"
-        strokeWidth={2}
-        opacity={1}
-      />
-      <g
-        transform={`translate(${arrowX},${arrowY}) rotate(${angleDeg + 180}) translate(0,${dateArrowSize * -0.2})`}
-      >
-        <polygon
-          points={`0,${-dateArrowSize} ${dateArrowSize},${dateArrowSize} ${-dateArrowSize},${dateArrowSize}`}
-          fill="white"
-          stroke="black"
-        />
-      </g>
-    </>
+    <line
+      x1={x1.toFixed(DEFAULT_FRACTION_DIGITS)}
+      y1={y1.toFixed(DEFAULT_FRACTION_DIGITS)}
+      x2={x2.toFixed(DEFAULT_FRACTION_DIGITS)}
+      y2={y2.toFixed(DEFAULT_FRACTION_DIGITS)}
+      stroke="#ff1493" // Deep pink
+      strokeWidth={3}
+      opacity={0.8}
+    />
   );
+}
+
+function getHoveredEventDisplay(hoveredEvent: CalendarEvent | null, categories: readonly Category[]) {
+  if (!hoveredEvent) return null;
+  const category = categories.find((cat) => cat.id === hoveredEvent.categoryId);
+  const lines = [
+    `Subject: ${hoveredEvent.subject}`,
+    `Start: ${datefns.format(hoveredEvent.start, 'yyyy-MM-dd')}`,
+    `End: ${datefns.format(hoveredEvent.end, 'yyyy-MM-dd')}`,
+    `Lane: ${hoveredEvent.lane}`,
+    `Category: ${category?.name || 'Unknown'}`,
+  ];
+  return (
+    <g>
+      <rect x="-120" y="-70" width="240" height="140" fill="white" stroke="black" opacity={0.9} />
+      {lines.map((line, i) => (
+        <text key={i} x="0" y={-50 + i * 20} textAnchor="middle" fontSize="14" fill="black">
+          {line}
+        </text>
+      ))}
+    </g>
+  );
+}
+
+function getSeasonalBackgroundRings(
+  eph: WheelRenderEphemeraInternal,
+) {
+  const { minDate, maxDate, dateToAngle, styleConfig } = eph;
+  const outerRadius = Math.max(
+    styleConfig.weekOuterRadius,
+    styleConfig.dateOuterRadius,
+    styleConfig.eventInnerRadius,
+    styleConfig.monthOuterRadius,
+  );
+  
+  // Seasonal colors: Winter, Spring, Summer, Fall
+  const seasonalColors = [
+    { name: "Winter", color: "#add8e6", months: [11, 0, 1] }, // Dec, Jan, Feb
+    { name: "Spring", color: "#90ee90", months: [2, 3, 4] },   // Mar, Apr, May
+    { name: "Summer", color: "#ffffe0", months: [5, 6, 7] },   // Jun, Jul, Aug
+    { name: "Fall", color: "#ffdab9", months: [8, 9, 10] },    // Sep, Oct, Nov
+  ];
+
+  const rings: React.ReactNode[] = [];
+
+  seasonalColors.forEach((season) => {
+    season.months.forEach((monthNum) => {
+      // Create start and end dates for each month
+      let monthStart = new Date(minDate.getFullYear(), monthNum, 1);
+      let monthEnd = datefns.endOfMonth(monthStart);
+
+      // Clamp to the wheel's date range
+      if (monthEnd < minDate || monthStart > maxDate) return;
+      
+      monthStart = datefns.max([minDate, monthStart]);
+      monthEnd = datefns.min([maxDate, monthEnd]);
+
+      const startAngle = dateToAngle(monthStart);
+      const endAngle = dateToAngle(monthEnd);
+      const isLarge = Math.abs(endAngle - startAngle) > Math.PI;
+
+      rings.push(
+        <path
+          key={`season-${season.name}-${monthNum}`}
+          d={generateFatArcPathCommand(
+            0,
+            0,
+            0,
+            outerRadius,
+            startAngle,
+            endAngle,
+            styleConfig.reverse,
+            isLarge,
+          )}
+          fill={season.color}
+          opacity={0.08}
+          pointerEvents="none"
+        />
+      );
+    });
+  });
+
+  return rings;
 }
 
 function getPeriodDateRing(
@@ -400,6 +518,37 @@ function getPeriodDateRing(
   );
 }
 
+function getPastDaysPieChart(
+  eph: WheelRenderEphemeraInternal,
+  color: string,
+  opacity: number,
+  startDate: Date,
+  endDate: Date,
+) {
+  const { styleConfig, dateToAngle } = eph;
+  const innerRadius = 0; // From center
+  const outerRadius = styleConfig.dateInnerRadius; // To inner edge of date ring
+  const startAngle = dateToAngle(startDate);
+  const endAngle = dateToAngle(endDate);
+  const isLarge = Math.abs(endAngle - startAngle) > Math.PI;
+  return (
+    <path
+      d={generateFatArcPathCommand(
+        0,
+        0,
+        innerRadius,
+        outerRadius,
+        startAngle,
+        endAngle,
+        styleConfig.reverse,
+        isLarge,
+      )}
+      fill={color}
+      opacity={opacity}
+    />
+  );
+}
+
 export function Wheel({
   events,
   minDate,
@@ -407,7 +556,9 @@ export function Wheel({
   dateLocale,
   styleConfig,
   palette,
+  categories,
 }: WheelProps) {
+  const [hoveredEvent, setHoveredEvent] = useState<CalendarEvent | null>(null);
   const minDateT = datefns.startOfDay(minDate);
   const maxDateT = datefns.endOfDay(maxDate);
   const minTimestamp = +minDateT;
@@ -436,7 +587,7 @@ export function Wheel({
 
   const pastElements =
     styleConfig.pastColor && styleConfig.pastColorOpacity > 0 && todayIsInRange
-      ? getPeriodDateRing(
+      ? getPastDaysPieChart(
           eph,
           styleConfig.pastColor,
           styleConfig.pastColorOpacity,
@@ -467,13 +618,15 @@ export function Wheel({
   return (
     <svg viewBox={`0 0 ${size} ${size}`}>
       <g transform={transform}>
+        {getSeasonalBackgroundRings(eph)}
         {getMonthRingElements(eph)}
         {pastElements}
         {futureElements}
         {getWeekRingElements(eph)}
         {getDateRingElements(eph)}
         {styleConfig.showTodayIndicator ? getTodayIndicatorElements(eph) : null}
-        {getEventsElements(events, eph)}
+        {getEventsElements(events, categories, eph, setHoveredEvent)}
+        {getHoveredEventDisplay(hoveredEvent, categories)}
       </g>
     </svg>
   );

@@ -1,24 +1,29 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Wheel } from "./components/Wheel";
-import { CalendarEvent, CalendarEventSchema } from "./types";
+import { CalendarEvent, CalendarEventSchema, Category, CategorySchema } from "./types";
 import { usePersistedZodSchemaState } from "./hooks";
 import { z } from "zod";
 import { ConfigPanel } from "./components/ConfigPanel";
 import { getDefaultWheelStyle } from "./wheelStyle";
 import { loadExampleData } from "./exampleData";
-import { locales, palettes } from "./data";
+import { locales, palettes, defaultCategories } from "./data";
 
 export default function App() {
-  const [minDate, setMinDate] = React.useState("2024-01-01");
-  const [maxDate, setMaxDate] = React.useState("2024-12-31");
+  const [minDate, setMinDate] = React.useState("2026-01-01");
+  const [maxDate, setMaxDate] = React.useState("2026-12-31");
   const [localeName, setLocaleName] = React.useState("en-US");
-  const [paletteName, setPaletteName] = React.useState("claude");
+  const [paletteName, setPaletteName] = React.useState("spectral");
   const [style, setStyle] = React.useState(() => getDefaultWheelStyle(1000));
   const [events, setEvents] = usePersistedZodSchemaState<CalendarEvent[]>(
     "calendar-wheel-events-2",
     z.array(CalendarEventSchema),
     loadExampleData,
+  );
+  const [categories, setCategories] = usePersistedZodSchemaState<Category[]>(
+    "calendar-wheel-categories",
+    z.array(CategorySchema),
+    () => defaultCategories,
   );
 
   const minDateT = new Date(minDate);
@@ -32,6 +37,7 @@ export default function App() {
       dateLocale={locales[localeName]!}
       styleConfig={style}
       palette={palettes[paletteName]!}
+      categories={categories}
     />
   );
 
@@ -59,6 +65,8 @@ export default function App() {
         <ConfigPanel
           events={events}
           setEvents={setEvents}
+          categories={categories}
+          setCategories={setCategories}
           minDate={minDate}
           setMinDate={setMinDate}
           maxDate={maxDate}

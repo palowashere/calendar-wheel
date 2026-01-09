@@ -10,6 +10,7 @@ export function loadExampleData(): CalendarEvent[] {
       subject: "New year party",
       uid: "hny",
       lane: 1,
+      categoryId: "winter",
     },
     {
       start: datefns.set(soy, { month: 2, date: 13 }),
@@ -17,6 +18,7 @@ export function loadExampleData(): CalendarEvent[] {
       subject: "Sakura \u{1F338}",
       uid: "sakura",
       lane: 1,
+      categoryId: "spring",
     },
     {
       start: datefns.addMonths(soy, 5),
@@ -24,6 +26,7 @@ export function loadExampleData(): CalendarEvent[] {
       subject: "Summer \u{1F3D6}",
       uid: "summer",
       lane: 1,
+      categoryId: "summer",
     },
     {
       start: datefns.set(soy, { month: 5, date: 20 }),
@@ -31,6 +34,7 @@ export function loadExampleData(): CalendarEvent[] {
       subject: "June solstice",
       uid: "june-solstice",
       lane: 2,
+      categoryId: "summer",
     },
     {
       start: datefns.set(soy, { month: 11, date: 21 }),
@@ -38,6 +42,7 @@ export function loadExampleData(): CalendarEvent[] {
       subject: "December solstice",
       uid: "december-solstice",
       lane: 2,
+      categoryId: "winter",
     },
     // Dark beer season
     {
@@ -46,6 +51,7 @@ export function loadExampleData(): CalendarEvent[] {
       subject: "Oktoberfest",
       uid: "oktoberfest",
       lane: 1,
+      categoryId: "fall",
     },
     {
       start: datefns.set(soy, { month: 11, date: 6 }),
@@ -53,6 +59,7 @@ export function loadExampleData(): CalendarEvent[] {
       subject: "St. Nicholas Day",
       uid: "st-nicholas",
       lane: 1,
+      categoryId: "winter",
     },
   ];
 }

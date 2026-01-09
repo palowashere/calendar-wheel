@@ -33,7 +33,7 @@ export interface WheelStyleConfig {
 
 export function getDefaultWheelStyle(size: number): WheelStyleConfig {
   const monthOuterRadius = (size / 2) * 0.9;
-  const monthInnerRadius = (size / 2) * 0.78;
+  const monthInnerRadius = 230; //(size / 2) * 0.78;
   const weekInnerRadius = (size / 2) * 0.9;
   const weekOuterRadius = (size / 2) * 0.93;
   const radiusAdj = (size / 2) * 0.02;
@@ -42,7 +42,7 @@ export function getDefaultWheelStyle(size: number): WheelStyleConfig {
   return {
     // Misc
     size,
-    isoWeeks: true,
+    isoWeeks: false,
     // Lanes
     laneGap,
     laneWidth,
@@ -59,16 +59,16 @@ export function getDefaultWheelStyle(size: number): WheelStyleConfig {
     minimumVisibleAngleDeg: 0,
     reverse: false,
     // Typography
-    eventFontSize: 9,
-    monthFontSize: 20,
+    eventFontSize: 12,
+    monthFontSize: 24,
     weekFontSize: 12,
     // Today
     showTodayIndicator: false,
     alignWheelToToday: false,
     // Future and past coloring
     futureColor: null,
-    pastColor: null,
+    pastColor: "#666666",
     futureColorOpacity: 0.5,
-    pastColorOpacity: 0.5,
+    pastColorOpacity: 0.3,
   };
 }
